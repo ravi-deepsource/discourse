@@ -11,6 +11,7 @@ import DiscourseURL, { userPath } from "discourse/lib/url";
 import { Promise } from "rsvp";
 import User from "discourse/models/user";
 import bootbox from "bootbox";
+import messageBus from "message-bus-client";
 
 const wrapAdmin = (user) => (user ? AdminUser.create(user) : null);
 
@@ -504,7 +505,7 @@ const AdminUser = User.extend({
     const user = this;
     const location = document.location.pathname;
 
-    bootbox.dialog(I18n.t("admin.user.merging_user"));
+    const bootboxDiv = bootbox.dialog(I18n.t("admin.user.merging_user"));
     let formData = { context: location };
 
     if (opts && opts.targetUsername) {
@@ -515,20 +516,26 @@ const AdminUser = User.extend({
       type: "POST",
       data: formData,
     })
-      .then((data) => {
-        if (data.merged) {
-          if (/^\/admin\/users\/list\//.test(location)) {
-            DiscourseURL.redirectTo(location);
-          } else {
-            DiscourseURL.redirectTo(
-              `/admin/users/${data.user.id}/${data.user.username}`
-            );
-          }
+      .then((response) => {
+        if (response.success) {
+          // const messageBus = container.lookup("message-bus:main");
+          messageBus.subscribe("/merge_user", (data) => {
+            if (data.merged) {
+              if (/^\/admin\/users\/list\//.test(location)) {
+                DiscourseURL.redirectTo(location);
+              } else {
+                DiscourseURL.redirectTo(
+                  `/admin/users/${data.user.id}/${data.user.username}`
+                );
+              }
+            } else if (data.message) {
+              bootboxDiv.find(".modal-body").html(data.message);
+            } else if (data.failed) {
+              bootbox.alert(I18n.t("admin.user.merge_failed"));
+            }
+          });
         } else {
           bootbox.alert(I18n.t("admin.user.merge_failed"));
-          if (data.user) {
-            user.setProperties(data.user);
-          }
         }
       })
       .catch(() => {
