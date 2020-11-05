@@ -859,18 +859,13 @@ export default Controller.extend(bufferedProperty("model"), {
 
     addNotice(post) {
       return new Promise(function (resolve, reject) {
-        const modal = showModal("add-post-notice");
-        modal.setProperties({ post, resolve, reject });
+        const modal = showModal("change-post-notice", { model: post });
+        modal.setProperties({
+          resolve,
+          reject,
+          notice: post.notice ? post.notice.raw : "",
+        });
       });
-    },
-
-    removeNotice(post) {
-      return post.updatePostField("notice", null).then(() =>
-        post.setProperties({
-          notice_type: null,
-          notice_args: null,
-        })
-      );
     },
 
     toggleParticipant(user) {
